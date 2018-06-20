@@ -1,0 +1,174 @@
+#!/usr/bin/env python
+
+from Tkinter import *
+import Image, ImageTk
+import urllib
+import cStringIO 
+
+CLICKING_MAP = False
+CLICKED_CORNERS = []
+
+
+class Interface():
+    def __init__(self):
+
+        self.root = Tk()
+        self.frame = Frame(self.root, bd=2, relief=SUNKEN)
+        
+        self.canvas_frame=Frame(self.frame,width=640,height=640)
+        self.canvas_frame.grid(row=0,column=0)
+        self.canvas=Canvas(self.canvas_frame,width=640,height=640,scrollregion=(0,0,1920,1920))
+        self.hbar=Scrollbar(self.canvas_frame,orient=HORIZONTAL)
+        self.hbar.pack(side=BOTTOM,fill=X)
+        self.hbar.config(command=self.canvas.xview)
+        self.vbar=Scrollbar(self.canvas_frame,orient=VERTICAL)
+        self.vbar.pack(side=RIGHT,fill=Y)
+        self.vbar.config(command=self.canvas.yview)
+        self.canvas.config(width=640,height=640)
+        self.canvas_frame.place(x=10, y=170)
+        self.canvas.config(xscrollcommand=self.hbar.set, yscrollcommand=self.vbar.set)
+        self.canvas.pack(side=LEFT,expand=True,fill=BOTH)
+
+        self.clicking_map = False
+        self.clicked_corners = []
+        self.ZOOM = 10
+
+        self.frame.grid_rowconfigure(0, weight=1)
+        self.frame.grid_columnconfigure(0, weight=1)
+        self.frame.pack(fill=BOTH,expand=1)
+        self.root.geometry("700x1000")
+        
+        #image_name = "images/map_" + str(self.ZOOM) + ".jpg"
+        image_name = "images/new_img.jpg"
+        self.img = ImageTk.PhotoImage(Image.open(image_name))
+        self.image_on_canvas = self.canvas.create_image(0,0,image=self.img,anchor="nw")
+        
+        self.canvas.bind("<Button 1>",self.GetCoodsCB)
+
+        
+    def SetUpWindow(self):
+    
+        placePointButton = Button(text="Place Point", command=self.PlacePointCB)
+        placePointButton.place(x=10, y=50)
+        
+        undoButton = Button(text="Undo last command", command=self.UndoCB)
+        undoButton.place(x=10, y=80)
+
+        recordButton = Button(text="Take recording at last point", command=self.RecordCB)
+        recordButton.place(x=10, y=110)
+        
+        exitButton = Button(text="Exit", command=self.ExitCB)
+        exitButton.place(x=10, y=140)
+
+        zoomInButton = Button(text="zoom in", command=self.ZoomInCB)
+        zoomInButton.place(x=10, y=840)
+        
+        zoomOutButton = Button(text="zoom out", command=self.ZoomOutCB)
+        zoomOutButton.place(x=90, y=840)
+    
+        # upButton = Button(text=" Up  ", command=self.UpCB)
+        # upButton.place(x=500, y=840)
+        # downButton = Button(text="Down ", command=self.DownCB)
+        # downButton.place(x=500, y=867)
+        # leftButton = Button(text="Left ", command=self.LeftCB)
+        # leftButton.place(x=455, y=853)
+        # rightButton = Button(text="Right", command=self.RightCB)
+        # rightButton.place(x=545, y=853)
+
+        # upButton.config(height=1, width=2)
+        # downButton.config(height=1, width=2)
+        # leftButton.config(height=1, width=2)
+        # rightButton.config(height=1, width=2)
+        
+        #self.canvas.create_line(0, 400, 900, 400, fill='blue', width=5.0)  # x-axis
+
+        self.root.mainloop()
+        
+    def PlacePointCB(self):
+        print "point button Pressed!"
+        global CLICKING_MAP
+        CLICKING_MAP = True
+        print (1 - (0.666666 - self.vbar.get()[0]) / 0.666666)
+        print (1 - (0.666666 - self.hbar.get()[0]) / 0.666666)
+
+    def UndoCB(self):
+        print "undo Pressed!"
+    
+    def RecordCB(self):
+        print "record Pressed!"
+
+    def ZoomInCB(self):
+        print "Zooming in!"
+        # if self.ZOOM < 17:
+        #     print "zooming in!"
+        #     self.ZOOM = self.ZOOM + 1
+        #     print self.ZOOM
+        #     image_name = "images/map_" + str(self.ZOOM) + ".jpg"
+        #     self.img = ImageTk.PhotoImage(Image.open(image_name))
+        #     self.image_on_canvas = self.canvas.create_image(0,0,image=self.img,anchor="nw")
+        #     self.canvas.itemconfig(self.image_on_canvas, image = self.img)
+        
+    def ZoomOutCB(self):
+        print "Zooming out!"
+        # if self.ZOOM > 10:
+        #     print "zooming out!"
+        #     self.ZOOM = self.ZOOM - 1
+        #     print self.ZOOM
+        #     image_name = "images/map_" + str(self.ZOOM) + ".jpg"
+        #     self.img = ImageTk.PhotoImage(Image.open(image_name))
+        #     self.image_on_canvas = self.canvas.create_image(0,0,image=self.img,anchor="nw")
+        #     self.canvas.itemconfig(self.image_on_canvas, image = self.img)
+    
+    # def UpCB(self):
+    #     print "UP!"
+
+    # def DownCB(self):
+    #     print "DOWN!"
+
+    # def LeftCB(self):
+    #     print "LEFT!"
+
+    # def RightCB(self):
+    #     print "RIGHT!"
+    
+    def ExitCB(self):
+        print "Exiting!"
+        exit()
+    
+    def GetCoodsCB(self, event):
+        global CLICKING_MAP
+        if CLICKING_MAP:
+            print (event.x,event.y)
+            CLICKING_MAP = False
+
+    def MouseZoomInCB(self, event):
+        if self.ZOOM < 17:
+            print "zooming in!"
+            self.ZOOM = self.ZOOM + 1
+            print self.ZOOM
+            image_name = "images/map_" + str(self.ZOOM) + ".jpg"
+            self.img = ImageTk.PhotoImage(Image.open(image_name))
+            self.image_on_canvas = self.canvas.create_image(0,0,image=self.img,anchor="nw")
+            self.canvas.itemconfig(self.image_on_canvas, image = self.img)
+        
+
+    def MouseZoomOutCB(self, event):
+        if self.ZOOM > 10:
+            print "zooming out!"
+            self.ZOOM = self.ZOOM - 1
+            print self.ZOOM
+            image_name = "images/map_" + str(self.ZOOM) + ".jpg"
+            self.img = ImageTk.PhotoImage(Image.open(image_name))
+            self.image_on_canvas = self.canvas.create_image(0,0,image=self.img,anchor="nw")
+            self.canvas.itemconfig(self.image_on_canvas, image = self.img)
+
+
+
+
+
+        
+if __name__ == "__main__":
+    
+    #SetUpWindow()
+    myGUI = Interface()
+    myGUI.SetUpWindow()
