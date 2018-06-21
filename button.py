@@ -22,6 +22,9 @@ class Interface():
         self.ZOOM = 15
         self.LAT = 42.0
         self.LON = -87.69
+        self.HBAR_POS = 0.0
+        self.VBAR_POS = 0.0
+
         self.CreateMap()
         
         self.root = Tk()
@@ -80,11 +83,11 @@ class Interface():
         
     def PlacePointCB(self):
         print "point button Pressed!"
-        global CLICKING_MAP
-        CLICKING_MAP = True
-        print (1 - (0.666666 - self.vbar.get()[0]) / 0.666666)
-        print (1 - (0.666666 - self.hbar.get()[0]) / 0.666666)
-
+        self.CLICKING_MAP = True
+        my_lat, my_lon = self.GetLatLon()
+        print my_lat
+        print my_lon
+        
     def UndoCB(self):
         print "undo Pressed!"
     
@@ -94,7 +97,9 @@ class Interface():
     def ZoomInCB(self):
         if self.ZOOM < 17:
             print "zooming in!"
+            self.LAT, self.LON = self.GetLatLon()
             self.ZOOM = self.ZOOM + 1
+
             self.CreateMap()
             image_name = "images/stitched_map" + ".jpg"
             self.img = ImageTk.PhotoImage(Image.open(image_name))
@@ -104,7 +109,9 @@ class Interface():
     def ZoomOutCB(self):
         if self.ZOOM > 10:
             print "Zooming out!"
+            self.LAT, self.LON = self.GetLatLon()
             self.ZOOM = self.ZOOM - 1
+
             self.CreateMap()
             image_name = "images/stitched_map" + ".jpg"
             self.img = ImageTk.PhotoImage(Image.open(image_name))
@@ -116,9 +123,30 @@ class Interface():
         exit()
     
     def GetCoodsCB(self, event):
-        if self.CLICKING_MAP:
+        if (self.CLICKING_MAP == True):
             print (event.x,event.y)
+            #clicked_lat, clicked_lon = self.GetLatLon()
+            print (clicked_lat, clicked_lon)
             self.CLICKING_MAP = False
+    
+    def GetLatLon(self):
+        self.VBAR_POSE = (self.vbar.get()[0] + self.vbar.get()[1]) / 2.0
+        self.HBAR_POSE = (self.hbar.get()[0] + self.hbar.get()[1]) / 2.0
+
+        R = 6371000.0
+        dist_to_edge = 71*(2**(19 - self.ZOOM))
+        del_x = 3.0*dist_to_edge
+        del_lat = -(del_x / R)*180.0/math.pi
+        temp_lat = self.LAT + 2.0*(self.VBAR_POSE - 0.5)*(del_lat)
+
+        del_y = 3.0*dist_to_edge
+        lat_R = R*math.cos(temp_lat*math.pi/ 180.0)
+        del_lon = (del_y / lat_R)*180.0/math.pi
+        
+        temp_lon = self.LON + 2.0*(self.HBAR_POSE - 0.5)*(del_lon)
+
+        return temp_lat, temp_lon
+
 
     def FindTileLatLon(self, lat_index, lon_index):
         R = 6371000.0
