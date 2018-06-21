@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 
 from Tkinter import *
-import Image, ImageTk
+import Image, ImageTk, ImageDraw
 import urllib
 import cStringIO 
 
 import math
-
-CLICKED_CORNERS = []
 
 #----------------------------------------------------------------------------------------------------
 #
@@ -19,12 +17,14 @@ class Interface():
     def __init__(self):
         self.CLICKING_MAP = False
         self.clicked_corners = []
-        self.ZOOM = 15
-        self.LAT = 42.0
-        self.LON = -87.69
+        self.ZOOM = 17
+        self.LAT = 42.048501
+        self.LON = -87.699061
         self.HBAR_POS = 0.0
         self.VBAR_POS = 0.0
-
+        self.CLICKED_POINTS = []
+        self.NUM_POINTS_CLICKED = 0
+        
         self.CreateMap()
         
         self.root = Tk()
@@ -50,7 +50,7 @@ class Interface():
         self.root.geometry("700x1000")
         
         #image_name = "images/map_" + str(self.ZOOM) + ".jpg"
-        image_name = "images/stitched_map.jpg"
+        image_name = "images/stitched_map_paths.jpg"
         self.img = ImageTk.PhotoImage(Image.open(image_name))
         self.image_on_canvas = self.canvas.create_image(0,0,image=self.img,anchor="nw")
         
@@ -80,17 +80,26 @@ class Interface():
         #self.canvas.create_line(0, 400, 900, 400, fill='blue', width=5.0)  # x-axis
 
         self.root.mainloop()
+
+    def UpdateCanvasImage(self):
+        image_name = "images/stitched_map_paths" + ".jpg"
+        self.img = ImageTk.PhotoImage(Image.open(image_name))
+        self.image_on_canvas = self.canvas.create_image(0,0,image=self.img,anchor="nw")
+        self.canvas.itemconfig(self.image_on_canvas, image = self.img)
         
     def PlacePointCB(self):
         print "point button Pressed!"
         self.CLICKING_MAP = True
-        my_lat, my_lon = self.GetLatLon()
-        print my_lat
-        print my_lon
         
     def UndoCB(self):
-        print "undo Pressed!"
-    
+        if (self.NUM_POINTS_CLICKED > 0):
+            print "undo Pressed!"
+            self.CLICKED_POINTS.pop(self.NUM_POINTS_CLICKED - 1)
+            self.NUM_POINTS_CLICKED = self.NUM_POINTS_CLICKED - 1
+
+            self.DrawPaths()
+            self.UpdateCanvasImage()
+            
     def RecordCB(self):
         print "record Pressed!"
 
@@ -101,11 +110,8 @@ class Interface():
             self.ZOOM = self.ZOOM + 1
 
             self.CreateMap()
-            image_name = "images/stitched_map" + ".jpg"
-            self.img = ImageTk.PhotoImage(Image.open(image_name))
-            self.image_on_canvas = self.canvas.create_image(0,0,image=self.img,anchor="nw")
-            self.canvas.itemconfig(self.image_on_canvas, image = self.img)
-        
+            self.UpdateCanvasImage()
+            
     def ZoomOutCB(self):
         if self.ZOOM > 10:
             print "Zooming out!"
@@ -113,28 +119,125 @@ class Interface():
             self.ZOOM = self.ZOOM - 1
 
             self.CreateMap()
-            image_name = "images/stitched_map" + ".jpg"
-            self.img = ImageTk.PhotoImage(Image.open(image_name))
-            self.image_on_canvas = self.canvas.create_image(0,0,image=self.img,anchor="nw")
-            self.canvas.itemconfig(self.image_on_canvas, image = self.img)
-        
+            self.UpdateCanvasImage()
+            
     def ExitCB(self):
         print "Exiting!"
         exit()
     
     def GetCoodsCB(self, event):
         if (self.CLICKING_MAP == True):
-            print (event.x,event.y)
-            #clicked_lat, clicked_lon = self.GetLatLon()
-            print (clicked_lat, clicked_lon)
+            center_lat, center_lon = self.GetLatLon()
+            #print(event.x, event.y)
+            
+            del_x = (640 / 2) - event.y #in pixels
+            del_y = event.x - (640 / 2) #in pixels
+
+            dist_to_edge = 71.0*(2.0**(19 - self.ZOOM))
+            del_x = dist_to_edge*del_x/320.0 #in meters
+            del_y = dist_to_edge*del_y/320.0 #in meters
+
+            R = 6371000.0
+            del_lat = (del_x / R)*180.0/math.pi
+            clicked_lat = center_lat + del_lat
+            
+            lat_R = R*math.cos(clicked_lat*math.pi/ 180.0)
+            del_lon = (del_y / lat_R)*180.0/math.pi
+            clicked_lon = center_lon + del_lon
+
+            print "clicked latitude: " + str(clicked_lat)
+            print "clicked longitude: " + str(clicked_lon)
+
+            self.NUM_POINTS_CLICKED = self.NUM_POINTS_CLICKED + 1
+            self.CLICKED_POINTS.append((clicked_lat, clicked_lon))
+            
+            self.DrawPaths()
+            self.UpdateCanvasImage()
+            
             self.CLICKING_MAP = False
+
+    def DrawPaths(self):
+        img = Image.open("./images/stitched_map.jpg")
+        result = Image.new("RGB", (1920, 1920))
+        result.paste(img, (0, 0, 1920, 1920))
+        result.save("./images/stitched_map_paths.jpg")
+        
+        print "redrawing paths"
+        
+        if (self.NUM_POINTS_CLICKED != 0):
+            for i in range(self.NUM_POINTS_CLICKED):
+                if(i == 0):
+                    self.DrawPoint(self.CLICKED_POINTS[i])
+                else:
+                    self.DrawPoint(self.CLICKED_POINTS[i])
+                    self.DrawLine(self.CLICKED_POINTS[i - 1], self.CLICKED_POINTS[i])
+
+    def DrawPoint(self, point):
+        img = Image.open("./images/stitched_map_paths.jpg")
+        
+        R = 6371000.0
+        dist_to_edge = 3.0*71.0*(2.0**(19 - self.ZOOM))
+        del_lat = point[0] - self.LAT
+        del_lon = point[1] - self.LON
+
+        del_x = (del_lat*math.pi/180.0)*R
+
+        lat_R = R*math.cos(point[0]*math.pi/ 180.0)
+        del_y = (del_lon*math.pi/180.0)*lat_R
+
+        pixel_y = int(960.0 - (del_x/dist_to_edge)*960.0)
+        pixel_x = int(960.0 + (del_y/dist_to_edge)*960.0)
+
+        draw = ImageDraw.Draw(img)
+        point1 = (pixel_x+5, pixel_y+5)
+        point2 = (pixel_x-5, pixel_y+5)
+        point3 = (pixel_x-5, pixel_y-5)
+        point4 = (pixel_x+5, pixel_y-5)
+
+        draw.polygon((point1[0], point1[1], point2[0], point2[1], point3[0], point3[1], point4[0], point4[1]), fill=128)
+
+        img.save("./images/stitched_map_paths.jpg")
+
+    def DrawLine(self, point1, point2):
+        img = Image.open("./images/stitched_map_paths.jpg")
+        draw = ImageDraw.Draw(img)
+
+        R = 6371000.0
+        dist_to_edge = 3.0*71.0*(2.0**(19 - self.ZOOM))
+        
+        del_lat1 = point1[0] - self.LAT
+        del_lon1 = point1[1] - self.LON
+
+        del_x1 = (del_lat1*math.pi/180.0)*R
+
+        lat_R1 = R*math.cos(point1[0]*math.pi/ 180.0)
+        del_y1 = (del_lon1*math.pi/180.0)*lat_R1
+
+        pixel_y1 = int(960.0 - (del_x1/dist_to_edge)*960.0)
+        pixel_x1 = int(960.0 + (del_y1/dist_to_edge)*960.0)
+
+        del_lat2 = point2[0] - self.LAT
+        del_lon2 = point2[1] - self.LON
+
+        del_x2 = (del_lat2*math.pi/180.0)*R
+
+        lat_R2 = R*math.cos(point2[0]*math.pi/ 180.0)
+        del_y2 = (del_lon2*math.pi/180.0)*lat_R2
+
+        pixel_y2 = int(960.0 - (del_x2/dist_to_edge)*960.0)
+        pixel_x2 = int(960.0 + (del_y2/dist_to_edge)*960.0)
+        
+        draw.line((pixel_x1, pixel_y1, pixel_x2, pixel_y2), fill=128, width=5)
+        img.save("./images/stitched_map_paths.jpg")
+
+        
     
     def GetLatLon(self):
         self.VBAR_POSE = (self.vbar.get()[0] + self.vbar.get()[1]) / 2.0
         self.HBAR_POSE = (self.hbar.get()[0] + self.hbar.get()[1]) / 2.0
 
         R = 6371000.0
-        dist_to_edge = 71*(2**(19 - self.ZOOM))
+        dist_to_edge = 71.0*(2.0**(19 - self.ZOOM))
         del_x = 3.0*dist_to_edge
         del_lat = -(del_x / R)*180.0/math.pi
         temp_lat = self.LAT + 2.0*(self.VBAR_POSE - 0.5)*(del_lat)
@@ -150,7 +253,7 @@ class Interface():
 
     def FindTileLatLon(self, lat_index, lon_index):
         R = 6371000.0
-        dist_to_edge = 71*(2**(19 - self.ZOOM))
+        dist_to_edge = 71.0*(2.0**(19 - self.ZOOM))
         del_x = 2.0*lat_index*dist_to_edge
         del_lat = (del_x / R)*180.0/math.pi
         map_lat = self.LAT + del_lat
@@ -187,6 +290,7 @@ class Interface():
                 map_coods = str(map_lat) + "," + str(map_lon)
                 get_static_google_map(img_name, center=map_coods, zoom=self.ZOOM, imgsize=(640,640), imgformat="jpg", maptype="hybrid" )
         self.StitchMaps()
+        self.DrawPaths()
         print "Map created!"
 
 
