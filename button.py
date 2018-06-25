@@ -184,8 +184,6 @@ class Interface():
             self.AppendPoint()
             self.UpdateCanvasImage()
 
-            print marker_id
-            
             self.CLICKING_MAP = False
 
 
@@ -196,9 +194,10 @@ class Interface():
             else:
                 point1 = self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 2]
                 point2 = self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1]
-                
+
+                if (not self.DrawLine(point1, point2)):
+                    return
                 self.DrawPoint(point2)
-                self.DrawLine(point1, point2)
             
 
         
@@ -215,8 +214,9 @@ class Interface():
                 if(i == 0):
                     self.DrawPoint(self.CLICKED_POINTS[i])
                 else:
+                    if(not self.DrawLine(self.CLICKED_POINTS[i - 1], self.CLICKED_POINTS[i])):
+                        return
                     self.DrawPoint(self.CLICKED_POINTS[i])
-                    self.DrawLine(self.CLICKED_POINTS[i - 1], self.CLICKED_POINTS[i])
 
     def DrawPoint(self, point):
         img = Image.open("./images/stitched_map_paths.jpg")
@@ -251,7 +251,8 @@ class Interface():
         file = open("map.txt", "r")
         line = file.readline()
         found_path = False
-        for line in file:
+        
+        while True:
             if '<path' in line:
                 id1_index = line.find('id1')
                 id2_index = line.find('id2')
@@ -261,11 +262,15 @@ class Interface():
                 if ((id1==point1[2] and id2==point2[2]) or (id1==point2[2] and id2==point1[2])):
                     found_path = True
                     break
+            line = file.readline()
+            if not line: break
                 
         if (found_path == False):
             print "no path found between these two markers"
+            self.NUM_POINTS_CLICKED = self.NUM_POINTS_CLICKED - 1
+            self.CLICKED_POINTS.pop(self.NUM_POINTS_CLICKED)
             file.close()
-            return
+            return False
 
         lat1 = point1[0]
         lon1 = point1[1]
@@ -282,8 +287,6 @@ class Interface():
             lat1 = float(line[2:comma_index])
             lon1 = float(line[comma_index + 1:])
 
-            self.DrawPoint(lat1, lon1)
-            
             del_lat1 = lat1 - self.LAT
             del_lon1 = lon1 - self.LON
             
@@ -338,6 +341,8 @@ class Interface():
         draw.line((pixel_x1, pixel_y1, pixel_x2, pixel_y2), fill=128, width=5)
         
         img.save("./images/stitched_map_paths.jpg")
+
+        return True
 
         
     
