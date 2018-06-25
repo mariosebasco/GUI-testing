@@ -7,12 +7,12 @@ import cStringIO
 
 import math
 
-#----------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 #
 #                         GRAPHICAL USER INTERFACE USING TKINTER
 #
 #
-#----------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 class Interface():
     def __init__(self):
         self.CLICKING_MAP = False
@@ -28,6 +28,7 @@ class Interface():
         self.CreateMap()
         
         self.root = Tk()
+        self.root.title("WOLF UI")
         self.frame = Frame(self.root, bd=2, relief=SUNKEN)
         
         self.canvas_frame=Frame(self.frame,width=640,height=640)
@@ -148,14 +149,59 @@ class Interface():
             print "clicked latitude: " + str(clicked_lat)
             print "clicked longitude: " + str(clicked_lon)
 
+            #convert to lat and lon on map file
+            file = open("map.txt" , "r")
+            min_dist = 1000
+            for line in file:
+                if 'marker' in line:
+                    lat_index = line.find('lat')
+                    lon_index = line.find('lon')
+                    id_index = line.find('id')
+                    end_index = line.find('/>')
+                    
+                    curr_lat = float(line[(lat_index + 5): (lon_index - 2)])
+                    curr_lon = float(line[(lon_index + 5): (id_index - 2)])
+                    
+                    curr_lat_rad = curr_lat*math.pi/180.0
+                    clicked_lat_rad = clicked_lat*math.pi/180.0
+                    del_lat = (curr_lat - clicked_lat)*math.pi/180.0
+                    del_lon = (curr_lon - clicked_lon)*math.pi/180.0
+
+                    a = (math.sin(del_lat/2.0))**2 + math.cos(curr_lat_rad)*math.cos(clicked_lat_rad)*(math.sin(del_lon/2.0)**2)
+                    c = 2.0*math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+                    d = R*c
+                    if d < min_dist:
+                        min_dist = d
+                        actual_lat = curr_lat
+                        actual_lon = curr_lon
+                        marker_id = int(line[(id_index + 4):(end_index - 1)])
+            file.close()
+                                    
+
             self.NUM_POINTS_CLICKED = self.NUM_POINTS_CLICKED + 1
-            self.CLICKED_POINTS.append((clicked_lat, clicked_lon))
+            self.CLICKED_POINTS.append((actual_lat, actual_lon, marker_id))
             
-            self.DrawPaths()
+            self.AppendPoint()
             self.UpdateCanvasImage()
+
+            print marker_id
             
             self.CLICKING_MAP = False
 
+
+    def AppendPoint(self):        
+        if(self.NUM_POINTS_CLICKED != 0):
+            if(self.NUM_POINTS_CLICKED == 1):
+                self.DrawPoint(self.CLICKED_POINTS[0])
+            else:
+                point1 = self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 2]
+                point2 = self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1]
+                
+                self.DrawPoint(point2)
+                self.DrawLine(point1, point2)
+            
+
+        
     def DrawPaths(self):
         img = Image.open("./images/stitched_map.jpg")
         result = Image.new("RGB", (1920, 1920))
@@ -202,11 +248,73 @@ class Interface():
         img = Image.open("./images/stitched_map_paths.jpg")
         draw = ImageDraw.Draw(img)
 
+        file = open("map.txt", "r")
+        line = file.readline()
+        found_path = False
+        for line in file:
+            if '<path' in line:
+                id1_index = line.find('id1')
+                id2_index = line.find('id2')
+                end_index = line.find('>')
+                id1 = int(line[id1_index + 5: id2_index - 2])
+                id2 = int(line[id2_index + 5: end_index - 1])
+                if ((id1==point1[2] and id2==point2[2]) or (id1==point2[2] and id2==point1[2])):
+                    found_path = True
+                    break
+                
+        if (found_path == False):
+            print "no path found between these two markers"
+            file.close()
+            return
+
+        lat1 = point1[0]
+        lon1 = point1[1]
+
+        line = file.readline()
+
         R = 6371000.0
         dist_to_edge = 3.0*71.0*(2.0**(19 - self.ZOOM))
         
-        del_lat1 = point1[0] - self.LAT
-        del_lon1 = point1[1] - self.LON
+        while('</path>' not in line):
+            lat2 = lat1
+            lon2 = lon1
+            comma_index = line.find(',')
+            lat1 = float(line[2:comma_index])
+            lon1 = float(line[comma_index + 1:])
+
+            self.DrawPoint(lat1, lon1)
+            
+            del_lat1 = lat1 - self.LAT
+            del_lon1 = lon1 - self.LON
+            
+            del_x1 = (del_lat1*math.pi/180.0)*R
+            
+            lat_R1 = R*math.cos(point1[0]*math.pi/ 180.0)
+            del_y1 = (del_lon1*math.pi/180.0)*lat_R1
+            
+            pixel_y1 = int(960.0 - (del_x1/dist_to_edge)*960.0)
+            pixel_x1 = int(960.0 + (del_y1/dist_to_edge)*960.0)
+
+            del_lat2 = lat2 - self.LAT
+            del_lon2 = lon2 - self.LON
+            
+            del_x2 = (del_lat2*math.pi/180.0)*R
+            
+            lat_R2 = R*math.cos(point2[0]*math.pi/ 180.0)
+            del_y2 = (del_lon2*math.pi/180.0)*lat_R2
+            
+            pixel_y2 = int(960.0 - (del_x2/dist_to_edge)*960.0)
+            pixel_x2 = int(960.0 + (del_y2/dist_to_edge)*960.0)
+            
+            draw.line((pixel_x1, pixel_y1, pixel_x2, pixel_y2), fill=128, width=5)
+
+            line = file.readline()
+
+        file.close()
+
+        
+        del_lat1 = lat1 - self.LAT
+        del_lon1 = lon1 - self.LON
 
         del_x1 = (del_lat1*math.pi/180.0)*R
 
@@ -228,6 +336,7 @@ class Interface():
         pixel_x2 = int(960.0 + (del_y2/dist_to_edge)*960.0)
         
         draw.line((pixel_x1, pixel_y1, pixel_x2, pixel_y2), fill=128, width=5)
+        
         img.save("./images/stitched_map_paths.jpg")
 
         
@@ -336,7 +445,12 @@ def get_static_google_map(filename_wo_extension, center=None, zoom=None, imgsize
 
 
 
-        
+#--------------------------------------------------------------------------------------------------
+#
+#                                               MAIN
+#
+#
+#--------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
     
     #SetUpWindow()
