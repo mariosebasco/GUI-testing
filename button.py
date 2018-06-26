@@ -24,7 +24,9 @@ class Interface():
         self.VBAR_POS = 0.0
         self.CLICKED_POINTS = []
         self.NUM_POINTS_CLICKED = 0
-        
+        self.EVENT_POINT = False
+        self.EVENT_NUM = 1
+        self.EVENT_FILE = open("event_file.txt", "w")
         self.CreateMap()
         
         self.root = Tk()
@@ -102,7 +104,9 @@ class Interface():
             self.UpdateCanvasImage()
             
     def RecordCB(self):
-        print "record Pressed!"
+        print "Press location to record!"
+        self.CLICKING_MAP = True
+        self.EVENT_POINT = True
 
     def ZoomInCB(self):
         if self.ZOOM < 17:
@@ -181,6 +185,10 @@ class Interface():
             self.NUM_POINTS_CLICKED = self.NUM_POINTS_CLICKED + 1
             self.CLICKED_POINTS.append((actual_lat, actual_lon, marker_id))
             
+            self.EVENT_FILE.write("event:" + str(self.EVENT_NUM) + "\n")
+            self.EVENT_FILE.write("lat:" + str(actual_lat) + "\n")
+            self.EVENT_FILE.write("lon:" + str(actual_lon) + "\n")
+
             self.AppendPoint()
             self.UpdateCanvasImage()
 
@@ -220,7 +228,11 @@ class Interface():
 
     def DrawPoint(self, point):
         img = Image.open("./images/stitched_map_paths.jpg")
-        
+
+        if (self.EVENT_POINT): color = (0,128,0)
+        else: color = 128
+        self.EVENT_POINT = False
+
         R = 6371000.0
         dist_to_edge = 3.0*71.0*(2.0**(19 - self.ZOOM))
         del_lat = point[0] - self.LAT
@@ -240,7 +252,7 @@ class Interface():
         point3 = (pixel_x-5, pixel_y-5)
         point4 = (pixel_x+5, pixel_y-5)
 
-        draw.polygon((point1[0], point1[1], point2[0], point2[1], point3[0], point3[1], point4[0], point4[1]), fill=128)
+        draw.polygon((point1[0], point1[1], point2[0], point2[1], point3[0], point3[1], point4[0], point4[1]), fill=color)
 
         img.save("./images/stitched_map_paths.jpg")
 
