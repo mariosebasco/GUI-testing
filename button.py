@@ -24,9 +24,14 @@ class Interface():
         self.VBAR_POS = 0.0
         self.CLICKED_POINTS = []
         self.NUM_POINTS_CLICKED = 0
+        self.PATH = []
         self.EVENT_POINT = False
-        self.EVENT_NUM = 1
-        self.EVENT_FILE = open("event_file.txt", "w")
+        self.EVENTS = []
+        self.NUM_EVENTS = 0
+        self.COLOR = (128, 0, 0) #red
+        self.FREE_POINT_MODE = False
+        self.REDRAWING_MAP = False
+        
         self.CreateMap()
         
         self.root = Tk()
@@ -43,7 +48,7 @@ class Interface():
         self.vbar.pack(side=RIGHT,fill=Y)
         self.vbar.config(command=self.canvas.yview)
         self.canvas.config(width=640,height=640)
-        self.canvas_frame.place(x=10, y=170)
+        self.canvas_frame.place(x=10, y=190)
         self.canvas.config(xscrollcommand=self.hbar.set, yscrollcommand=self.vbar.set)
         self.canvas.pack(side=LEFT,expand=True,fill=BOTH)
 
@@ -64,22 +69,28 @@ class Interface():
     
         placePointButton = Button(text="Place Point", command=self.PlacePointCB)
         placePointButton.place(x=10, y=50)
-        
-        undoButton = Button(text="Undo last command", command=self.UndoCB)
-        undoButton.place(x=10, y=80)
 
-        recordButton = Button(text="Take recording at last point", command=self.RecordCB)
-        recordButton.place(x=10, y=110)
+        recordButton = Button(text="Place Event Point", command=self.RecordCB)
+        recordButton.place(x=10, y=80)
+        
+        undoButton = Button(text="Undo", command=self.UndoCB)
+        undoButton.place(x=10, y=130)
         
         exitButton = Button(text="Exit", command=self.ExitCB)
-        exitButton.place(x=10, y=140)
+        exitButton.place(x=10, y=160)
 
         zoomInButton = Button(text="zoom in", command=self.ZoomInCB)
-        zoomInButton.place(x=10, y=840)
+        zoomInButton.place(x=10, y=860)
         
         zoomOutButton = Button(text="zoom out", command=self.ZoomOutCB)
-        zoomOutButton.place(x=90, y=840)
-    
+        zoomOutButton.place(x=90, y=860)
+
+        FinishButton = Button(text="Finish Path", command=self.FinishCB)
+        FinishButton.place(x=550, y=860)
+
+        FreePointButton = Button(text="Free/Fixed Points", command=self.FreePointModeCB)
+        FreePointButton.place(x=550, y=160)
+        
         #self.canvas.create_line(0, 400, 900, 400, fill='blue', width=5.0)  # x-axis
 
         self.root.mainloop()
@@ -97,7 +108,12 @@ class Interface():
     def UndoCB(self):
         if (self.NUM_POINTS_CLICKED > 0):
             print "undo Pressed!"
+            if self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][3]:
+                self.EVENTS.pop(self.NUM_EVENTS - 1)
+                self.NUM_EVENTS = self.NUM_EVENTS - 1
             self.CLICKED_POINTS.pop(self.NUM_POINTS_CLICKED - 1)
+            if(len(self.PATH) > 0):
+                self.PATH.pop(len(self.PATH) - 1)
             self.NUM_POINTS_CLICKED = self.NUM_POINTS_CLICKED - 1
 
             self.DrawPaths()
@@ -109,7 +125,7 @@ class Interface():
         self.EVENT_POINT = True
 
     def ZoomInCB(self):
-        if self.ZOOM < 17:
+        if self.ZOOM < 20:
             print "zooming in!"
             self.LAT, self.LON = self.GetLatLon()
             self.ZOOM = self.ZOOM + 1
@@ -129,11 +145,39 @@ class Interface():
     def ExitCB(self):
         print "Exiting!"
         exit()
+
+    def FinishCB(self):
+        print "Creating completed text files!"
+        event_file = open("event_file.txt", "w")
+        path_file = open("gps_raw.txt", "w")
+
+        counter = 1
+        for event in self.EVENTS:
+            event_file.write("event: " + str(counter) + "\n")
+            event_file.write("marker id: " + str(event[2]) + "\n")
+            event_file.write("latitude: " + str(event[0]) + "\n")
+            event_file.write("longitude: " + str(event[1]) + "\n")
+            counter = counter + 1
+
+        for path in self.PATH:
+            for point in path:
+                path_file.write(str(point[0]) + "\n")
+                path_file.write(str(point[1]) + "\n")
+        path_file.write(str(self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][0]) + "\n")
+        path_file.write(str(self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][1]) + "\n")
+                
+        event_file.close()
+        path_file.close()
+        exit()
+
+    def FreePointModeCB(self):
+        self.FREE_POINT_MODE = not self.FREE_POINT_MODE
+        if self.FREE_POINT_MODE: print "Free point mode ON"
+        else: print "Free point mode OFF"
     
     def GetCoodsCB(self, event):
         if (self.CLICKING_MAP == True):
             center_lat, center_lon = self.GetLatLon()
-            #print(event.x, event.y)
             
             del_x = (640 / 2) - event.y #in pixels
             del_y = event.x - (640 / 2) #in pixels
@@ -153,60 +197,67 @@ class Interface():
             print "clicked latitude: " + str(clicked_lat)
             print "clicked longitude: " + str(clicked_lon)
 
-            #convert to lat and lon on map file
-            file = open("map.txt" , "r")
-            min_dist = 1000
-            for line in file:
-                if 'marker' in line:
-                    lat_index = line.find('lat')
-                    lon_index = line.find('lon')
-                    id_index = line.find('id')
-                    end_index = line.find('/>')
-                    
-                    curr_lat = float(line[(lat_index + 5): (lon_index - 2)])
-                    curr_lon = float(line[(lon_index + 5): (id_index - 2)])
-                    
-                    curr_lat_rad = curr_lat*math.pi/180.0
-                    clicked_lat_rad = clicked_lat*math.pi/180.0
-                    del_lat = (curr_lat - clicked_lat)*math.pi/180.0
-                    del_lon = (curr_lon - clicked_lon)*math.pi/180.0
-
-                    a = (math.sin(del_lat/2.0))**2 + math.cos(curr_lat_rad)*math.cos(clicked_lat_rad)*(math.sin(del_lon/2.0)**2)
-                    c = 2.0*math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-                    d = R*c
-                    if d < min_dist:
-                        min_dist = d
-                        actual_lat = curr_lat
-                        actual_lon = curr_lon
-                        marker_id = int(line[(id_index + 4):(end_index - 1)])
-            file.close()
+            if(not self.FREE_POINT_MODE):
+                #convert to lat and lon on map file
+                file = open("map.txt" , "r")
+                min_dist = 1000
+                for line in file:
+                    if 'marker' in line:
+                        lat_index = line.find('lat')
+                        lon_index = line.find('lon')
+                        id_index = line.find('id')
+                        end_index = line.find('/>')
+                        
+                        curr_lat = float(line[(lat_index + 5): (lon_index - 2)])
+                        curr_lon = float(line[(lon_index + 5): (id_index - 2)])
+                        
+                        curr_lat_rad = curr_lat*math.pi/180.0
+                        clicked_lat_rad = clicked_lat*math.pi/180.0
+                        del_lat = (curr_lat - clicked_lat)*math.pi/180.0
+                        del_lon = (curr_lon - clicked_lon)*math.pi/180.0
+                        
+                        a = (math.sin(del_lat/2.0))**2 + math.cos(curr_lat_rad)*math.cos(clicked_lat_rad)*(math.sin(del_lon/2.0)**2)
+                        c = 2.0*math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+                        d = R*c
+                        if d < min_dist:
+                            min_dist = d
+                            actual_lat = curr_lat
+                            actual_lon = curr_lon
+                            marker_id = int(line[(id_index + 4):(end_index - 1)])
+                file.close()
+            else:
+                actual_lat = clicked_lat
+                actual_lon = clicked_lon
+                marker_id = self.NUM_POINTS_CLICKED
                                     
 
-            self.NUM_POINTS_CLICKED = self.NUM_POINTS_CLICKED + 1
-            self.CLICKED_POINTS.append((actual_lat, actual_lon, marker_id))
-            
-            self.EVENT_FILE.write("event:" + str(self.EVENT_NUM) + "\n")
-            self.EVENT_FILE.write("lat:" + str(actual_lat) + "\n")
-            self.EVENT_FILE.write("lon:" + str(actual_lon) + "\n")
-
-            self.AppendPoint()
+            point = (actual_lat, actual_lon, marker_id, self.EVENT_POINT)
+            self.AppendPoint(point)
             self.UpdateCanvasImage()
 
+            self.EVENT_POINT = False
             self.CLICKING_MAP = False
 
 
-    def AppendPoint(self):        
-        if(self.NUM_POINTS_CLICKED != 0):
-            if(self.NUM_POINTS_CLICKED == 1):
-                self.DrawPoint(self.CLICKED_POINTS[0])
-            else:
-                point1 = self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 2]
-                point2 = self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1]
+    def AppendPoint(self, point):        
+        self.REDRAWING_MAP = False
 
-                if (not self.DrawLine(point1, point2)):
-                    return
-                self.DrawPoint(point2)
+        if(point[3]): self.COLOR = (0,128,0)
+        else: self.COLOR = (128,0,0)
             
+        if(self.NUM_POINTS_CLICKED == 0):
+            self.DrawPoint(point)
+        else:
+            point1 = self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1]
+            if (not self.DrawLine(point1, point)):
+                return
+            self.DrawPoint(point)
+
+        self.NUM_POINTS_CLICKED = self.NUM_POINTS_CLICKED + 1
+        self.CLICKED_POINTS.append(point)
+        if point[3]:
+            self.EVENTS.append((point[0], point[1], point[2]))
+            self.NUM_EVENTS = self.NUM_EVENTS + 1
 
         
     def DrawPaths(self):
@@ -214,11 +265,16 @@ class Interface():
         result = Image.new("RGB", (1920, 1920))
         result.paste(img, (0, 0, 1920, 1920))
         result.save("./images/stitched_map_paths.jpg")
-        
+
+        self.REDRAWING_MAP = True
         print "redrawing paths"
-        
+
         if (self.NUM_POINTS_CLICKED != 0):
             for i in range(self.NUM_POINTS_CLICKED):
+                
+                if self.CLICKED_POINTS[i][3]: self.COLOR = (0,128,0)
+                else: self.COLOR = (128,0,0)
+                
                 if(i == 0):
                     self.DrawPoint(self.CLICKED_POINTS[i])
                 else:
@@ -228,10 +284,6 @@ class Interface():
 
     def DrawPoint(self, point):
         img = Image.open("./images/stitched_map_paths.jpg")
-
-        if (self.EVENT_POINT): color = (0,128,0)
-        else: color = 128
-        self.EVENT_POINT = False
 
         R = 6371000.0
         dist_to_edge = 3.0*71.0*(2.0**(19 - self.ZOOM))
@@ -252,108 +304,110 @@ class Interface():
         point3 = (pixel_x-5, pixel_y-5)
         point4 = (pixel_x+5, pixel_y-5)
 
-        draw.polygon((point1[0], point1[1], point2[0], point2[1], point3[0], point3[1], point4[0], point4[1]), fill=color)
+        draw.polygon((point1[0], point1[1], point2[0], point2[1], point3[0], point3[1], point4[0], point4[1]), fill=self.COLOR)
 
         img.save("./images/stitched_map_paths.jpg")
 
     def DrawLine(self, point1, point2):
-        img = Image.open("./images/stitched_map_paths.jpg")
-        draw = ImageDraw.Draw(img)
-
-        file = open("map.txt", "r")
-        line = file.readline()
-        found_path = False
-        
-        while True:
-            if '<path' in line:
-                id1_index = line.find('id1')
-                id2_index = line.find('id2')
-                end_index = line.find('>')
-                id1 = int(line[id1_index + 5: id2_index - 2])
-                id2 = int(line[id2_index + 5: end_index - 1])
-                if ((id1==point1[2] and id2==point2[2]) or (id1==point2[2] and id2==point1[2])):
-                    found_path = True
-                    break
-            line = file.readline()
-            if not line: break
-                
-        if (found_path == False):
-            print "no path found between these two markers"
-            self.NUM_POINTS_CLICKED = self.NUM_POINTS_CLICKED - 1
-            self.CLICKED_POINTS.pop(self.NUM_POINTS_CLICKED)
-            file.close()
-            return False
+        R = 6371000.0
+        dist_to_edge = 3.0*71.0*(2.0**(19 - self.ZOOM))
 
         lat1 = point1[0]
         lon1 = point1[1]
+        lat2 = point2[0]
+        lon2 = point2[1]
+        path = []
+        pixels = []
 
-        line = file.readline()
-
-        R = 6371000.0
-        dist_to_edge = 3.0*71.0*(2.0**(19 - self.ZOOM))
-        
-        while('</path>' not in line):
-            lat2 = lat1
-            lon2 = lon1
-            comma_index = line.find(',')
-            lat1 = float(line[2:comma_index])
-            lon1 = float(line[comma_index + 1:])
-
-            del_lat1 = lat1 - self.LAT
-            del_lon1 = lon1 - self.LON
-            
-            del_x1 = (del_lat1*math.pi/180.0)*R
-            
-            lat_R1 = R*math.cos(point1[0]*math.pi/ 180.0)
-            del_y1 = (del_lon1*math.pi/180.0)*lat_R1
-            
-            pixel_y1 = int(960.0 - (del_x1/dist_to_edge)*960.0)
-            pixel_x1 = int(960.0 + (del_y1/dist_to_edge)*960.0)
-
-            del_lat2 = lat2 - self.LAT
-            del_lon2 = lon2 - self.LON
-            
-            del_x2 = (del_lat2*math.pi/180.0)*R
-            
-            lat_R2 = R*math.cos(point2[0]*math.pi/ 180.0)
-            del_y2 = (del_lon2*math.pi/180.0)*lat_R2
-            
-            pixel_y2 = int(960.0 - (del_x2/dist_to_edge)*960.0)
-            pixel_x2 = int(960.0 + (del_y2/dist_to_edge)*960.0)
-            
-            draw.line((pixel_x1, pixel_y1, pixel_x2, pixel_y2), fill=128, width=5)
-
-            line = file.readline()
-
-        file.close()
-
-        
         del_lat1 = lat1 - self.LAT
         del_lon1 = lon1 - self.LON
-
+            
         del_x1 = (del_lat1*math.pi/180.0)*R
-
-        lat_R1 = R*math.cos(point1[0]*math.pi/ 180.0)
+        
+        lat_R1 = R*math.cos(lat1*math.pi/ 180.0)
         del_y1 = (del_lon1*math.pi/180.0)*lat_R1
+            
+        init_pix_y = int(960.0 - (del_x1/dist_to_edge)*960.0)
+        init_pix_x = int(960.0 + (del_y1/dist_to_edge)*960.0)
 
-        pixel_y1 = int(960.0 - (del_x1/dist_to_edge)*960.0)
-        pixel_x1 = int(960.0 + (del_y1/dist_to_edge)*960.0)
-
-        del_lat2 = point2[0] - self.LAT
-        del_lon2 = point2[1] - self.LON
-
+        del_lat2 = lat2 - self.LAT
+        del_lon2 = lon2 - self.LON
+        
         del_x2 = (del_lat2*math.pi/180.0)*R
-
-        lat_R2 = R*math.cos(point2[0]*math.pi/ 180.0)
+        
+        lat_R2 = R*math.cos(lat2*math.pi/ 180.0)
         del_y2 = (del_lon2*math.pi/180.0)*lat_R2
+        
+        end_pix_y = int(960.0 - (del_x2/dist_to_edge)*960.0)
+        end_pix_x = int(960.0 + (del_y2/dist_to_edge)*960.0)
+        
+        img = Image.open("./images/stitched_map_paths.jpg")
+        draw = ImageDraw.Draw(img)
 
-        pixel_y2 = int(960.0 - (del_x2/dist_to_edge)*960.0)
-        pixel_x2 = int(960.0 + (del_y2/dist_to_edge)*960.0)
+        if(not self.FREE_POINT_MODE):
+            file = open("map.txt", "r")
+            line = file.readline()
+            found_path = False
         
-        draw.line((pixel_x1, pixel_y1, pixel_x2, pixel_y2), fill=128, width=5)
-        
+            while True:
+                if '<path' in line:
+                    id1_index = line.find('id1')
+                    id2_index = line.find('id2')
+                    end_index = line.find('>')
+                    id1 = int(line[id1_index + 5: id2_index - 2])
+                    id2 = int(line[id2_index + 5: end_index - 1])
+                    if ((id1==point1[2] and id2==point2[2]) or (id1==point2[2] and id2==point1[2])):
+                        found_path = True
+                        break
+                line = file.readline()
+                if not line: break
+                
+            if (found_path == False):
+                print "no path found between these two markers"
+                file.close()
+                return False
+
+            line = file.readline()
+            
+            while('</path>' not in line):
+                comma_index = line.find(',')
+                if(comma_index == -1):
+                    line = file.readline()
+                    continue
+                lat1 = float(line[2:comma_index])
+                lon1 = float(line[comma_index + 1:])
+
+                path.append((lat1, lon1))
+                        
+                del_lat1 = lat1 - self.LAT
+                del_lon1 = lon1 - self.LON
+                        
+                del_x1 = (del_lat1*math.pi/180.0)*R
+                
+                lat_R1 = R*math.cos(point1[0]*math.pi/ 180.0)
+                del_y1 = (del_lon1*math.pi/180.0)*lat_R1
+                
+                pixel_y1 = int(960.0 - (del_x1/dist_to_edge)*960.0)
+                pixel_x1 = int(960.0 + (del_y1/dist_to_edge)*960.0)
+                
+                pixels.append((pixel_x1, pixel_y1))
+
+                line = file.readline()
+
+            file.close()
+
+            if (id1 == point2[2]):
+                path = list(reversed(path))
+                pixels = list(reversed(pixels))
+        path.insert(0, (point1[0], point1[1]))
+        pixels.insert(0, (init_pix_x, init_pix_y))
+        pixels.append((end_pix_x, end_pix_y))
+
+        for i in range(len(pixels) - 1):
+            draw.line((pixels[i][0], pixels[i][1], pixels[i+1][0], pixels[i+1][1]), fill=128, width=5)
+
+        if (not self.REDRAWING_MAP): self.PATH.append(path)
         img.save("./images/stitched_map_paths.jpg")
-
         return True
 
         

@@ -1,3 +1,4 @@
-event:1
-lat:42.048394
-lon:-87.698997
+event: 1
+marker id: 3
+latitude: 42.0483493519
+longitude: -87.7013074094
