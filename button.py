@@ -147,28 +147,29 @@ class Interface():
         exit()
 
     def FinishCB(self):
-        print "Creating completed text files!"
-        event_file = open("event_file.txt", "w")
-        path_file = open("gps_raw.txt", "w")
+        if(self.NUM_POINTS_CLICKED > 0):
+            print "Creating completed text files!"
+            event_file = open("event_file.txt", "w")
+            path_file = open("gps_raw.txt", "w")
 
-        counter = 1
-        for event in self.EVENTS:
-            event_file.write("event: " + str(counter) + "\n")
-            event_file.write("marker id: " + str(event[2]) + "\n")
-            event_file.write("latitude: " + str(event[0]) + "\n")
-            event_file.write("longitude: " + str(event[1]) + "\n")
-            counter = counter + 1
+            counter = 1
+            for event in self.EVENTS:
+                event_file.write("event: " + str(counter) + "\n")
+                event_file.write("marker id: " + str(event[2]) + "\n")
+                event_file.write("latitude: " + str(event[0]) + "\n")
+                event_file.write("longitude: " + str(event[1]) + "\n")
+                counter = counter + 1
 
-        for path in self.PATH:
-            for point in path:
-                path_file.write(str(point[0]) + "\n")
-                path_file.write(str(point[1]) + "\n")
-        path_file.write(str(self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][0]) + "\n")
-        path_file.write(str(self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][1]) + "\n")
+            for path in self.PATH:
+                for point in path:
+                    path_file.write(str(point[0]) + "\n")
+                    path_file.write(str(point[1]) + "\n")
+            path_file.write(str(self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][0]) + "\n")
+            path_file.write(str(self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][1]) + "\n")
                 
-        event_file.close()
-        path_file.close()
-        exit()
+            event_file.close()
+            path_file.close()
+            exit()
 
     def FreePointModeCB(self):
         self.FREE_POINT_MODE = not self.FREE_POINT_MODE
