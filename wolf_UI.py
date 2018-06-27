@@ -178,12 +178,14 @@ class Interface():
                 event_file.write("longitude: " + str(event[1]) + "\n")
                 counter = counter + 1
 
+            path_file.write("<coordinates>\n")
             for path in self.PATH:
                 for point in path:
-                    path_file.write(str(point[0]) + "\n")
-                    path_file.write(str(point[1]) + "\n")
-            path_file.write(str(self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][0]) + "\n")
-            path_file.write(str(self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][1]) + "\n")
+                    path_file.write("  " + str(point[0]) + "\n")
+                    path_file.write("  " + str(point[1]) + "\n")
+            path_file.write("  " + str(self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][0]) + "\n")
+            path_file.write("  " + str(self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][1]) + "\n")
+            path_file.write("</coordinates>\n")
                 
             event_file.close()
             path_file.close()
