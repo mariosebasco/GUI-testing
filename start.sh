@@ -25,17 +25,10 @@ else
     exit
 fi
 
-bar=""
-
-for i in {0..100..5}
+for i in {0..100}
 do
-    bar="$bar#"
-    echo -ne "$i\r\n"
-    #echo ''
-    echo -ne "$bar\r"
-    
+    echo -ne "loading --> $i% \r"
     sleep 0.1
-    #echo "$i"
 done
 
 echo ''
