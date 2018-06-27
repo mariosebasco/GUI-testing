@@ -17,9 +17,9 @@ class Interface():
     def __init__(self):
         self.CLICKING_MAP = False
         self.clicked_corners = []
-        self.ZOOM = 17
-        self.LAT = 42.048501
-        self.LON = -87.699061
+        self.ZOOM = 20
+        self.LAT = 42.0486127
+        self.LON = -87.697733
         self.HBAR_POS = 0.0
         self.VBAR_POS = 0.0
         self.CLICKED_POINTS = []
@@ -33,10 +33,14 @@ class Interface():
         self.REDRAWING_MAP = False
         
         self.CreateMap()
-        
+
         self.root = Tk()
         self.root.title("WOLF UI")
         self.frame = Frame(self.root, bd=2, relief=SUNKEN)
+
+        self.TEXTBOX = Text(self.root, height=5, width=30)
+        self.TEXTBOX.place(x=450, y=50)
+        self.TEXTBOX.insert(END, "WOLF UI\nBegin making Path\n#\n#\n#\n")
         
         self.canvas_frame=Frame(self.frame,width=640,height=640)
         self.canvas_frame.grid(row=0,column=0)
@@ -80,19 +84,20 @@ class Interface():
         exitButton.place(x=10, y=160)
 
         zoomInButton = Button(text="zoom in", command=self.ZoomInCB)
-        zoomInButton.place(x=10, y=860)
+        zoomInButton.place(x=10, y=850)
         
         zoomOutButton = Button(text="zoom out", command=self.ZoomOutCB)
-        zoomOutButton.place(x=90, y=860)
+        zoomOutButton.place(x=90, y=850)
 
-        FinishButton = Button(text="Finish Path", command=self.FinishCB)
-        FinishButton.place(x=550, y=860)
+        finishButton = Button(text="Finish Path", command=self.FinishCB)
+        finishButton.place(x=570, y=850)
 
-        FreePointButton = Button(text="Free/Fixed Points", command=self.FreePointModeCB)
-        FreePointButton.place(x=550, y=160)
+        executeButton = Button(text="execute trajectory", command=self.ExecuteCB)
+        executeButton.place(x=535, y=880)
+
+        freePointButton = Button(text="Free/Fixed Points", command=self.FreePointModeCB)
+        freePointButton.place(x=535, y=160)
         
-        #self.canvas.create_line(0, 400, 900, 400, fill='blue', width=5.0)  # x-axis
-
         self.root.mainloop()
 
     def UpdateCanvasImage(self):
@@ -100,13 +105,20 @@ class Interface():
         self.img = ImageTk.PhotoImage(Image.open(image_name))
         self.image_on_canvas = self.canvas.create_image(0,0,image=self.img,anchor="nw")
         self.canvas.itemconfig(self.image_on_canvas, image = self.img)
+
+    def WriteToWindow(self, inputString):
+        self.TEXTBOX.insert(END, inputString)
+        self.TEXTBOX.delete('1.0','2.0')
+        
         
     def PlacePointCB(self):
+        self.WriteToWindow("point button Pressed!\n")
         print "point button Pressed!"
         self.CLICKING_MAP = True
         
     def UndoCB(self):
         if (self.NUM_POINTS_CLICKED > 0):
+            self.WriteToWindow("Undo pressed!\n")
             print "undo Pressed!"
             if self.CLICKED_POINTS[self.NUM_POINTS_CLICKED - 1][3]:
                 self.EVENTS.pop(self.NUM_EVENTS - 1)
@@ -120,12 +132,14 @@ class Interface():
             self.UpdateCanvasImage()
             
     def RecordCB(self):
+        self.WriteToWindow("Press location to record!\n")
         print "Press location to record!"
         self.CLICKING_MAP = True
         self.EVENT_POINT = True
 
     def ZoomInCB(self):
         if self.ZOOM < 20:
+            self.WriteToWindow("Zooming in!\n")
             print "zooming in!"
             self.LAT, self.LON = self.GetLatLon()
             self.ZOOM = self.ZOOM + 1
@@ -135,6 +149,7 @@ class Interface():
             
     def ZoomOutCB(self):
         if self.ZOOM > 10:
+            self.WriteToWindow("Zooming out!\n")
             print "Zooming out!"
             self.LAT, self.LON = self.GetLatLon()
             self.ZOOM = self.ZOOM - 1
@@ -143,12 +158,15 @@ class Interface():
             self.UpdateCanvasImage()
             
     def ExitCB(self):
+        self.WriteToWindow("Exiting!\n")
         print "Exiting!"
         exit()
 
     def FinishCB(self):
         if(self.NUM_POINTS_CLICKED > 0):
-            print "Creating completed text files!"
+            self.TEXTBOX.insert(END, "Exporting text files!\n")
+            self.TEXTBOX.delete('1.0','2.0')
+            print "Exporting text files!"
             event_file = open("event_file.txt", "w")
             path_file = open("gps_raw.txt", "w")
 
@@ -169,12 +187,19 @@ class Interface():
                 
             event_file.close()
             path_file.close()
-            exit()
 
     def FreePointModeCB(self):
         self.FREE_POINT_MODE = not self.FREE_POINT_MODE
-        if self.FREE_POINT_MODE: print "Free point mode ON"
-        else: print "Free point mode OFF"
+        if self.FREE_POINT_MODE:
+            print "Free point mode ON"
+            self.WriteToWindow("Free mode ON!\n")
+        else:
+            print "Free point mode OFF"
+            self.WriteToWindow("Free mode OFF!\n")
+
+    def ExecuteCB(self):
+        print "executing trajectory"
+        self.WriteToWindow("Executing trajectory!\n")
     
     def GetCoodsCB(self, event):
         if (self.CLICKING_MAP == True):
@@ -197,6 +222,9 @@ class Interface():
 
             print "clicked latitude: " + str(clicked_lat)
             print "clicked longitude: " + str(clicked_lon)
+
+            self.WriteToWindow("clicked latitude " + str(round(clicked_lat, 4)) + "\n")
+            self.WriteToWindow("clicked longitude " + str(round (clicked_lon, 4)) + "\n")
 
             if(not self.FREE_POINT_MODE):
                 #convert to lat and lon on map file
@@ -240,7 +268,7 @@ class Interface():
             self.CLICKING_MAP = False
 
 
-    def AppendPoint(self, point):        
+    def AppendPoint(self, point):
         self.REDRAWING_MAP = False
 
         if(point[3]): self.COLOR = (0,128,0)
@@ -260,8 +288,8 @@ class Interface():
             self.EVENTS.append((point[0], point[1], point[2]))
             self.NUM_EVENTS = self.NUM_EVENTS + 1
 
-        
-    def DrawPaths(self):
+
+    def DrawPaths(self):        
         img = Image.open("./images/stitched_map.jpg")
         result = Image.new("RGB", (1920, 1920))
         result.paste(img, (0, 0, 1920, 1920))
@@ -365,6 +393,9 @@ class Interface():
                 
             if (found_path == False):
                 print "no path found between these two markers"
+                self.TEXTBOX.insert(END, "no path found\n")
+                self.TEXTBOX.delete('1.0','2.0')
+                
                 file.close()
                 return False
 
@@ -464,6 +495,8 @@ class Interface():
                 
     def CreateMap(self):
         print "Loading Map"
+        #self.WriteToWindow("Loading Map\n")
+        
         for lat_index in range(-1, 2):
             for lon_index in range(-1, 2):
                 map_lat, map_lon = self.FindTileLatLon(lat_index, lon_index)
@@ -473,6 +506,8 @@ class Interface():
         self.StitchMaps()
         self.DrawPaths()
         print "Map created!"
+        #self.TEXTBOX.insert(END, "Map created!\n")
+        #self.TEXTBOX.delete('1.0','2.0')        
 
 
 #--------------------------------------------------------------------------------------------------
