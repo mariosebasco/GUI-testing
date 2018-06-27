@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import pysftp as sftp
 from pexpect import pxssh
 
@@ -72,6 +73,7 @@ def Sftp():
 if __name__ == "__main__":
     if ConnectNetwork():
         if CheckConnection():
-            Sftp():
-            #if Ssh():
+            Sftp()
+            sys.exit(0)
+    sys.exit(1)
             

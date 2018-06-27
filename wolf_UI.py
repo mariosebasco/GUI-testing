@@ -4,6 +4,7 @@ from Tkinter import *
 import Image, ImageTk, ImageDraw
 import urllib
 import cStringIO 
+import sys
 
 import math
 
@@ -92,8 +93,8 @@ class Interface():
         finishButton = Button(text="Finish Path", command=self.FinishCB)
         finishButton.place(x=570, y=850)
 
-        executeButton = Button(text="execute trajectory", command=self.ExecuteCB)
-        executeButton.place(x=535, y=880)
+        ReuseButton = Button(text="Use Existing Files", command=self.ReuseCB)
+        ReuseButton.place(x=535, y=880)
 
         freePointButton = Button(text="Free/Fixed Points", command=self.FreePointModeCB)
         freePointButton.place(x=535, y=160)
@@ -160,7 +161,7 @@ class Interface():
     def ExitCB(self):
         self.WriteToWindow("Exiting!\n")
         print "Exiting!"
-        exit()
+        sys.exit(1)
 
     def FinishCB(self):
         if(self.NUM_POINTS_CLICKED > 0):
@@ -190,6 +191,8 @@ class Interface():
             event_file.close()
             path_file.close()
 
+            sys.exit(0)
+
     def FreePointModeCB(self):
         self.FREE_POINT_MODE = not self.FREE_POINT_MODE
         if self.FREE_POINT_MODE:
@@ -199,9 +202,10 @@ class Interface():
             print "Free point mode OFF"
             self.WriteToWindow("Free mode OFF!\n")
 
-    def ExecuteCB(self):
-        print "executing trajectory"
-        self.WriteToWindow("Executing trajectory!\n")
+    def ReuseCB(self):
+        print "will reuse existing files"
+        self.WriteToWindow("Will reuse existing files!\n")
+        sys.exit(0)
     
     def GetCoodsCB(self, event):
         if (self.CLICKING_MAP == True):

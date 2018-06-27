@@ -1,4 +1,0 @@
-event: 1
-marker id: 1
-latitude: 42.048394
-longitude: -87.698997
