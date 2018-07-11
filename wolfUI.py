@@ -8,10 +8,14 @@ import sys
 
 import math
 
+
+workOffline = False
+
+
 #---------------------------------------------------------------------------------------------------
 #
 #                         GRAPHICAL USER INTERFACE USING TKINTER
-#
+#                                         CLASS
 #
 #---------------------------------------------------------------------------------------------------
 class Interface():
@@ -84,11 +88,12 @@ class Interface():
         exitButton = Button(text="Exit", command=self.ExitCB)
         exitButton.place(x=10, y=160)
 
-        zoomInButton = Button(text="zoom in", command=self.ZoomInCB)
-        zoomInButton.place(x=10, y=850)
-        
-        zoomOutButton = Button(text="zoom out", command=self.ZoomOutCB)
-        zoomOutButton.place(x=90, y=850)
+        if not workOffline:
+            zoomInButton = Button(text="zoom in", command=self.ZoomInCB)
+            zoomInButton.place(x=10, y=850)
+            
+            zoomOutButton = Button(text="zoom out", command=self.ZoomOutCB)
+            zoomOutButton.place(x=90, y=850)
 
         finishButton = Button(text="Finish Path", command=self.FinishCB)
         finishButton.place(x=570, y=850)
@@ -102,7 +107,7 @@ class Interface():
         self.root.mainloop()
 
     def UpdateCanvasImage(self):
-        image_name = "images/stitched_map_paths" + ".jpg"
+        image_name = "images/stitched_map_paths.jpg"
         self.img = ImageTk.PhotoImage(Image.open(image_name))
         self.image_on_canvas = self.canvas.create_image(0,0,image=self.img,anchor="nw")
         self.canvas.itemconfig(self.image_on_canvas, image = self.img)
@@ -140,23 +145,25 @@ class Interface():
 
     def ZoomInCB(self):
         if self.ZOOM < 20:
-            self.WriteToWindow("Zooming in!\n")
+            self.WriteToWindow("Loading!\n")
             print "zooming in!"
             self.LAT, self.LON = self.GetLatLon()
             self.ZOOM = self.ZOOM + 1
 
             self.CreateMap()
             self.UpdateCanvasImage()
+            self.WriteToWindow("Zoomed in!\n")
             
     def ZoomOutCB(self):
         if self.ZOOM > 10:
-            self.WriteToWindow("Zooming out!\n")
+            self.WriteToWindow("Loading!\n")
             print "Zooming out!"
             self.LAT, self.LON = self.GetLatLon()
             self.ZOOM = self.ZOOM - 1
 
             self.CreateMap()
             self.UpdateCanvasImage()
+            self.WriteToWindow("Zoomed out!\n")
             
     def ExitCB(self):
         self.WriteToWindow("Exiting!\n")
@@ -502,6 +509,10 @@ class Interface():
         result.save("./images/stitched_map.jpg")
                 
     def CreateMap(self):
+        if workOffline:
+            self.DrawPaths();
+            return
+        
         print "Loading Map"
         #self.WriteToWindow("Loading Map\n")
         
@@ -567,6 +578,10 @@ def get_static_google_map(filename_wo_extension, center=None, zoom=None, imgsize
 #
 #--------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
+
+    if(len(sys.argv) == 2):
+        if(sys.argv[1] == "--workOffline"):
+            workOffline = True
     
     #SetUpWindow()
     myGUI = Interface()

@@ -16,6 +16,13 @@ EVENT_DESTINATION = '/home/robot/catkin_ws/src/testing/gps_files/event_file.txt'
 GPS_DESTINATION = '/home/robot/catkin_ws/src/testing/gps_files/gps_raw.kml'
 
 def ConnectNetwork():
+    #if already connected you don't have to do anything
+    cmd = "nmcli -t -f active,ssid dev wifi | egrep '^yes'"
+    result = subprocess.check_output(cmd, shell=True)
+    if(result[4:-1] == "dd-wrt"):
+        print "Already connected to router"
+        return True
+    
     response = os.system("nmcli c up dd-wrt")
     if response == 0:
         print "Connected to router"
