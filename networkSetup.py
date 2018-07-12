@@ -4,6 +4,7 @@ import os
 import sys
 import pysftp as sftp
 from pexpect import pxssh
+import subprocess
 
 HOST = '192.168.0.104'
 USERNAME = 'robot'

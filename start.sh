@@ -30,9 +30,9 @@ fi
 
 echo "launch vehicle files and run calibration"
 read -p "Press 'y' when ready to start " response
-if "$response" = "y"
+if [ "$response" = "y" ]
 then
-    cp gps_raw.txt home/robot/catkin_ws/src/testing/gps_files/gps_raw.kml
+    cp gps_raw.txt /home/robot/catkin_ws/src/testing/gps_files/gps_raw.kml
     rosrun testing convert_gps
     rosrun testing plotter_path.py
 fi
